@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-datanode-svc
+  labels:
+    app: hadoop-datanode-svc
+spec:
+  selector:
+    app: hadoop-datanode
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hadoop-datanode
+  labels:
+    app: hadoop-datanode
+spec:
+  selector:
+    matchLabels:
+      app: hadoop-datanode
+  serviceName: hadoop-datanode-svc
+  replicas: 3
+  template:
+    metadata:
+      name: hadoop-datanode
+      labels:
+        app: hadoop-datanode
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: datanode
+          image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /hadoop/dfs/data
+              name: hadoop-datanode-volume
+          env:
+            - name: 'SERVICE_PRECONDITION'
+              value: 'hadoop-namenode-0.hadoop-namenode-svc:9870'
+          envFrom:
+            - configMapRef:
+                name: hadoop-config
+  volumeClaimTemplates:
+    - metadata:
+        name: hadoop-datanode-volume
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: '1Gi'
+---
+# Для получения доступа к конкретному Datanode нужно пробрасывать порт
+# kubectl port-forward hadoop-datanode-0 9864
+# и т.д.
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-datanode-gateway-svc
+  labels:
+    app: hadoop-datanode
+spec:
+  selector:
+    app: hadoop-datanode
+  type: NodePort
+  ports:
+    - port: 9864
+      targetPort: 9864
+      protocol: TCP
+      name: http

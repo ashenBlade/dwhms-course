@@ -1,0 +1,72 @@
+# Для внутренних запросов
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-namenode-svc
+  labels:
+    app: hadoop-namenode
+spec:
+  selector:
+    app: hadoop-namenode
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hadoop-namenode
+  labels:
+    app: hadoop-namenode
+spec:
+  selector:
+    matchLabels:
+      app: hadoop-namenode
+  serviceName: hadoop-namenode-svc
+  replicas: 1
+  template:
+    metadata:
+      name: hadoop-namenode
+      labels:
+        app: hadoop-namenode
+    spec:
+      containers:
+        - name: namenode
+          image: bde2020/hadoop-namenode:2.0.0-hadoop3.1.3-java8
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50070
+            - containerPort: 9870
+            - containerPort: 9000
+          env:
+            - name: 'CLUSTER_NAME'
+              value: 'dhwms'
+          envFrom:
+            - configMapRef:
+                name: hadoop-config
+          volumeMounts:
+            - mountPath: /hadoop/dfs/name
+              name: namenode-volume
+  volumeClaimTemplates:
+    - metadata:
+        name: namenode-volume
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: '512Mi'
+---
+# Для запросов извне - веб-морда для HTTP
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-namenode-gateway-svc
+  labels:
+    app: hadoop-namenode-gateway-svc
+spec:
+  selector:
+    app: hadoop-namenode
+  type: NodePort
+  ports:
+    - port: 9870
+      targetPort: 9870
+      protocol: TCP
+      name: http
