@@ -48,7 +48,7 @@ spec:
         accessModes: ['ReadWriteOnce']
         resources:
           requests:
-            storage: '1Gi'
+            storage: '20Gi'
 ---
 # Для получения доступа к конкретному Datanode нужно пробрасывать порт
 # kubectl port-forward hadoop-datanode-0 9864

@@ -1,0 +1,60 @@
+# Для внутренних запросов
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-nodemanager-svc
+  labels:
+    app: hadoop-nodemanager
+spec:
+  selector:
+    app: hadoop-nodemanager
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hadoop-nodemanager
+  labels:
+    app: hadoop-nodemanager
+spec:
+  selector:
+    matchLabels:
+      app: hadoop-nodemanager
+  serviceName: hadoop-nodemanager-svc
+  replicas: 1
+  template:
+    metadata:
+      name: hadoop-nodemanager
+      labels:
+        app: hadoop-nodemanager
+    spec:
+      containers:
+        - name: resourcemanager
+          image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8042
+          envFrom:
+            - configMapRef:
+                name: hadoop-config
+---
+# Для запросов извне - веб-морда для HTTP
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-nodemanager-gateway-svc
+  labels:
+    app: hadoop-nodemanager-gateway-svc
+spec:
+  selector:
+    app: hadoop-nodemanager
+  type: NodePort
+  ports:
+    - port: 8042
+      targetPort: 8042
+      protocol: TCP
+      name: http
+    - port: 50030
+      targetPort: 50030
+      protocol: TCP
+      name: logs

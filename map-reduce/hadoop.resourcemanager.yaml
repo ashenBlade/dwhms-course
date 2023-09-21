@@ -1,0 +1,80 @@
+# Для внутренних запросов
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-resourcemanager-svc
+  labels:
+    app: hadoop-resourcemanager
+spec:
+  selector:
+    app: hadoop-resourcemanager
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hadoop-resourcemanager
+  labels:
+    app: hadoop-resourcemanager
+spec:
+  selector:
+    matchLabels:
+      app: hadoop-resourcemanager
+  serviceName: hadoop-resourcemanager-svc
+  replicas: 1
+  template:
+    metadata:
+      name: hadoop-resourcemanager
+      labels:
+        app: hadoop-resourcemanager
+    spec:
+      containers:
+        - name: resourcemanager
+          image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50070
+            - containerPort: 9870
+            - containerPort: 9000
+            - containerPort: 8032
+            - containerPort: 8030
+#          env:
+#            - name: 'SERVICE_PRECONDITION'
+#              value: "hadoop-namenode-0.hadoop-namenode-svc:50070 hadoop-datanode-0.hadoop-datanode-svc:50075 hadoop-resourcemanager-0.hadoop-resourcemanager-svc:8088"
+          envFrom:
+            - configMapRef:
+                name: hadoop-config
+          volumeMounts:
+            - mountPath: /hadoop/dfs/name
+              name: namenode-volume
+            - name: files-volume
+              mountPath: /files
+      volumes:
+        - name: files-volume
+          hostPath:
+            path: /anime
+  volumeClaimTemplates:
+    - metadata:
+        name: namenode-volume
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: '20Gi'
+---
+# Для запросов извне - веб-морда для HTTP
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-resourcemanager-gateway-svc
+  labels:
+    app: hadoop-resourcemanager-gateway-svc
+spec:
+  selector:
+    app: hadoop-resourcemanager
+  type: NodePort
+  ports:
+    - port: 8088
+      targetPort: 8088
+      protocol: TCP
+      name: http
