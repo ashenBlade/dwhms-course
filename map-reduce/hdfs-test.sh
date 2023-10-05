@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 
-# Перечисляем все файлы внутри корневой директории
-hdfs dfs -ls / 2>/dev/null
+kubectl cp mapper.py hadoop-resourcemanager-0:/
+kubectl cp reducer.py hadoop-resourcemanager-0:/
 
-# Создаем пустой текстовый файл
-hdfs dfs -touchz /plain.txt
+# Это чтобы обновить контейнер
 
-# Записываем текст в файл
-echo "Hello, world!" > test.txt
-hdfs dfs -appendToFile ./test.txt /plain.txt
+sed -i -e 's/deb.debian.org/archive.debian.org/g' \
+           -e 's|security.debian.org|archive.debian.org/|g' \
+           -e '/stretch-updates/d' /etc/apt/sources.list
 
-# Читаем записанные данные
-hdfs dfs -cat /plain.txt
+apt update -y  && apt install python3
+ln -s /usr/bin/python3 /usr/bin/python
+
+# Отсортировать результаты
+
+awk '{print $NF,$1}' part-00000 | sort -nr -t' ' -k1 | awk -F' ' '{print $NS}'

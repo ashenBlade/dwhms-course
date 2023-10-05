@@ -38,9 +38,6 @@ spec:
             - containerPort: 9000
             - containerPort: 8032
             - containerPort: 8030
-#          env:
-#            - name: 'SERVICE_PRECONDITION'
-#              value: "hadoop-namenode-0.hadoop-namenode-svc:50070 hadoop-datanode-0.hadoop-datanode-svc:50075 hadoop-resourcemanager-0.hadoop-resourcemanager-svc:8088"
           envFrom:
             - configMapRef:
                 name: hadoop-config
@@ -52,7 +49,7 @@ spec:
       volumes:
         - name: files-volume
           hostPath:
-            path: /anime
+            path: /data-files
   volumeClaimTemplates:
     - metadata:
         name: namenode-volume
