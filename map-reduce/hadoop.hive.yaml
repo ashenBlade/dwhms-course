@@ -1,0 +1,163 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hive-svc
+  labels:
+    app: hive-svc
+spec:
+  selector:
+    app: hive
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hive
+  labels:
+    app: hive
+spec:
+  selector:
+    matchLabels:
+      app: hive
+  serviceName: hive-svc
+  template:
+    metadata:
+      name: hive
+      labels:
+        app: hive
+    spec:
+      containers:
+        - name: hive
+          image: bde2020/hive:2.3.2-postgresql-metastore
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: hadoop-config
+          env:
+            - name: 'HIVE_CORE_CONF_javax_jdo_option_ConnectionURL'
+              value: 'jdbc:postgresql://metadata-hive-postgres-0.metadata-hive-postgres-svc.default.svc.cluster.local/metastore'
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionURL'
+              value: 'jdbc:postgresql://metadata-hive-postgres-0.metadata-hive-postgres-svc.default.svc.cluster.local/metastore'
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionDriverName'
+              value: 'org.postgresql.Driver'
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionUserName'
+              value: 'hive'
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionPassword'
+              value: 'hive'
+            - name: 'HIVE_SITE_CONF_datanucleus_autoCreateSchema'
+              value: 'false'
+            - name: 'HIVE_SITE_CONF_hive_metastore_uris'
+              value: 'thrift://metadata-hive-0.metadata-hive-svc.default.svc.cluster.local:9083'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-hive-svc
+  labels:
+    app: metadata-hive-svc
+spec:
+  selector:
+    app: metadata-hive
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: metadata-hive
+  labels:
+    app: metadata-hive
+spec:
+  selector:
+    matchLabels:
+      app: metadata-hive
+  serviceName: metadata-hive-svc
+  template:
+    metadata:
+      name: metadata-hive
+      labels:
+        app: metadata-hive
+    spec:
+      containers:
+        - name: metadata-hive
+          image: bde2020/hive:2.3.2-postgresql-metastore
+          command:
+            - 'entrypoint.sh'
+            - '/opt/hive/bin/hive'
+            - '--service'
+            - 'metastore'
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: hadoop-config
+          env:
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionURL'
+              value: 'jdbc:postgresql://metadata-hive-postgres-0.metadata-hive-postgres-svc.default.svc.cluster.local/metastore'
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionDriverName'
+              value: 'org.postgresql.Driver'
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionUserName'
+              value: 'hive'
+            - name: 'HIVE_SITE_CONF_javax_jdo_option_ConnectionPassword'
+              value: 'hive'
+            - name: 'HIVE_SITE_CONF_datanucleus_autoCreateSchema'
+              value: 'false'
+#            - name: 'HIVE_SITE_CONF_hive_metastore_schema_verification'
+#              value: 'true'
+            - name: 'HIVE_SITE_CONF_hive_metastore_uris'
+              value: 'thrift://metadata-hive-0.metadata-hive-svc.default.svc.cluster.local:9083'
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-hive-postgres-svc
+  labels:
+    app: metadata-hive-postgres-svc
+spec:
+  selector:
+    app: metadata-hive-postgres
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: metadata-hive-postgres
+  labels:
+    app: metadata-hive-postgres
+spec:
+  selector:
+    matchLabels:
+      app: metadata-hive-postgres
+  serviceName: metadata-hive-postgres-svc
+  template:
+    metadata:
+      name: metadata-hive-postgres
+      labels:
+        app: metadata-hive-postgres
+    spec:
+      containers:
+        - name: metadata-hive-postgres
+          image: bde2020/hive-metastore-postgresql:2.3.0
+          imagePullPolicy: IfNotPresent
+  volumeClaimTemplates:
+    - metadata:
+        name: metadata-hive-postgres-volume
+      spec:
+        accessModes: [ 'ReadWriteOnce' ]
+        resources:
+          requests:
+            storage: '20Gi'
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-hive-postgres-external-svc
+  labels:
+    app: metadata-hive-postgres-external-svc
+spec:
+  selector:
+    app: metadata-hive-postgres
+  type: NodePort
+  ports:
+    - port: 5432
+      targetPort: 5432
