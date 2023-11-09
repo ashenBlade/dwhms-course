@@ -1,19 +1,25 @@
 import pulsar
 
-from common import create_client, create_schema, UserMessage, TOPIC_NAME
+from common import create_client, create_schema, UserMessage, TOPIC_NAME, NEW_VERSION
 
 
 def main():
+    print("Подключаюсь")
     with create_client() as client:
-        producer = client.create_producer(topic=TOPIC_NAME, schema=(create_schema()),
+        producer = client.create_producer(topic=TOPIC_NAME, schema=create_schema(),
                                           producer_name='sample-producer')
         message = UserMessage()
         message.message = 'hello, world'
         message.username = 'username sample'
-        message.attachments = [
-            'first'
-        ]
+
+        if NEW_VERSION:
+            print("Отправляю новую версию")
+            message.comment = "this is a comment"
+        else:
+            print('Отправляю старую версию')
+
         producer.send(message)
+        print('Отправлено')
 
 
 if __name__ == '__main__':

@@ -5,11 +5,21 @@ import pulsar
 from pulsar.schema import Record, String, Array
 
 
-# во второй версии добавляю поле attachments
-class UserMessage(Record):
-    username = String()
-    message = String()
-    attachments = Array(String())
+NEW_VERSION = False
+
+if NEW_VERSION:
+    class UserMessage(Record):
+        username = String()
+        message = String()
+        comment = String()
+
+else:
+    class UserMessage(Record):
+        username = String()
+        message = String()
+
+        @property
+        def comment(self): return None
 
 
 @contextlib.contextmanager

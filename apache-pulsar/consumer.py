@@ -2,7 +2,6 @@ import common
 
 
 def main():
-
     with common.create_client() as client:
         consumer = client.subscribe(topic=common.TOPIC_NAME,
                                     subscription_name='sample-subscriber',
@@ -12,7 +11,8 @@ def main():
         while True:
             msg = consumer.receive()
             user_message = msg.value()
-            print(f'Получено:\n\t{user_message.username = }\n\t{user_message.message = }\n\t{msg.schema_version() = }')
+
+            print(f'Получено:\n\t{user_message.username = }\n\t{user_message.message = }\n\t{user_message.comment = }\n\t{msg.schema_version() = }')
 
             consumer.acknowledge(msg)
 
