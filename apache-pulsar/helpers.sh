@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 
-# Выставляем автообновление схемы для всего неймспейса
-/pulsar/bin/pulsar-admin namespaces set-schema-compatibility-strategy --compatibility BACKWARD_TRANSITIVE public/default
-/pulsar/bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable public/default
-/pulsar/bin/pulsar-admin namespaces set-schema-autoupdate-strategy  --compatibility Full public/default
-/pulsar/bin/pulsar-admin namespaces set-schema-validation-enforce --disable public/default
+# Выставляем совместимость вперед - FORWARD_TRANSITIVE
+# Именно его, так как я буду добавлять новое поле
+/pulsar/bin/pulsar-admin namespaces set-schema-compatibility-strategy --compatibility FORWARD_TRANSITIVE public/default
 
-# Получаем схему данных
-
-/pulsar/bin/pulsar-admin schemas get
