@@ -1,0 +1,18 @@
+version: '3.0'
+
+services:
+  neo4j:
+    image: neo4j:latest
+    ports:
+      - '7474:7474'
+      - '7687:7687'
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_dbms_security_procedures_unrestricted: gds.*,apoc.*
+      NEO4J_dbms_security_procedures_whitelist: gds.*,apoc.*
+    volumes:
+      - neo4j-volume:/data
+      - ./neo4j-graph-data-science-2.5.3.jar:/var/lib/neo4j/plugins/neo4j-graph-data-science-2.5.3.jar
+
+volumes:
+  neo4j-volume: {}
