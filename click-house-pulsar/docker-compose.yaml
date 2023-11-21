@@ -1,0 +1,32 @@
+version: '3.0'
+
+services:
+  pulsar:
+    image: apachepulsar/pulsar-all:latest
+    ports:
+      - '8080:8080'
+      - '6650:6650'
+    command: '/start-pulsar.sh'
+    environment:
+      clusterName: 'cluster-a'
+      managedLedgerDefaultEnsembleSize: '1'
+      managedLedgerDefaultWriteQuorum: '1'
+      managedLedgerDefaultAckQuorum: '1'
+      advertisedAddress: 'localhost'
+
+    volumes:
+      - ./start-pulsar.sh:/start-pulsar.sh
+      - ./connector.yaml:/configs/clickhouse-connector.yaml
+      - ./run-connector.sh:/run-connector.sh
+
+  clickhouse:
+    image: bitnami/clickhouse:latest
+    volumes:
+      - clickhouse-volume:/bitnami/clickhouse
+    ports:
+      - '8123:8123' # HTTP
+    environment:
+      ALLOW_EMPTY_PASSWORD: 'yes'
+
+volumes:
+  clickhouse-volume: {}

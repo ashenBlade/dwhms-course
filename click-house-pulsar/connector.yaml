@@ -1,0 +1,9 @@
+tenant: "public"
+namespace: "default"
+name: "jdbc-clickhouse"
+inputs: [ "persistent://public/default/clickhouse-test" ]
+sinkType: "jdbc-clickhouse"
+configs:
+    jdbcUrl: "jdbc:clickhouse://clickhouse:8123/default"
+    tableName: "events"
+    useTransactions: 'false'
