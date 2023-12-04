@@ -149,15 +149,17 @@ C4Context
 
 ## PageVisit
 
-Просмотр страницы продукта.
-
-Схема:
+Просмотр пользователем страницы продукта
 
 | Поле      | Тип      | Описание               |
 |-----------|----------|------------------------|
 | timestamp | datetime | Время события          |
 | user_id   | int      | ID пользователя        |
 | page_id   | int      | ID посещенной страницы |
+
+Топик: `page-visit`
+
+Таблица: `page_visits`
 
 ## Searching
 
@@ -170,6 +172,10 @@ C4Context
 | timestamp | datetime | Время события   |
 | user_id   | int      | ID пользователя |
 | query     | string   | Строка поиска   |
+
+Топик: `searching`
+
+Таблица: `searchings`
 
 ## Filtering
 
@@ -186,6 +192,10 @@ C4Context
 | rating_min | double?  | Минимальный рейтинг  |
 | rating_max | double?  | Максимальный рейтинг |
 
+Топик: `filtering`
+
+Таблица: `filterings`
+
 ## CartAdd
 
 Добавление товара в корзину
@@ -197,6 +207,10 @@ C4Context
 | timestamp | datetime | Время события          |
 | user_id   | int      | ID пользователя        |
 | item_id   | int      | ID добавленного товара |
+
+Топик: `cart-add`
+
+Таблица: `cart_adds`
 
 ## CartDelete
 
@@ -210,6 +224,10 @@ C4Context
 | user_id   | int      | ID пользователя      |
 | item_id   | int      | ID удаленного товара |
 
+Топик: `cart-delete`
+
+Таблица: `cart_deletes`
+
 ## Ordering
 
 Оформление заказа пользователем
@@ -221,6 +239,10 @@ C4Context
 | timestamp | datetime | Время события   |
 | user_id   | int      | ID пользователя |
 | order_id  | int      | ID заказа       |
+
+Топик: `ordering`
+
+Таблица: `orderings`
 
 ## OrderCancel
 
@@ -234,6 +256,10 @@ C4Context
 | user_id   | int      | ID пользователя       |
 | order_id  | int      | ID отмененного заказа |
 
+Топик: `order-cancel`
+
+Таблица: `order_cancels`
+
 ## ReviewReview
 
 Просмотр отзыва
@@ -246,6 +272,10 @@ C4Context
 | user_id   | int      | ID пользователя |
 | review_id | int      | ID отзыва       |
 
+Топик: `review-review`
+
+Таблица: `review_reviews`
+
 ## ReviewCreating
 
 Создание нового отзыва
@@ -257,6 +287,10 @@ C4Context
 | review_id | int      | ID созданного отзыва                 |
 | item_id   | int      | ID товара, на который создан отзыв   |
 
+Топик: `review-creating`
+
+Таблица: `review_creatings`
+
 ## Registering
 
 Регистрация пользователя
@@ -265,6 +299,10 @@ C4Context
 |-----------|----------|-----------------------|
 | timestamp | datetime | Время события         |
 | user_id   | int      | ID пользователя       |
+
+Топик: `registering`
+
+Таблица: `registerings`
 
 ## LoggingIn
 
@@ -281,6 +319,10 @@ login_type:
 - 1 - телефон и одноразовый код
 - 2 - внешний сервис
 
+Топик: `logging-in`
+
+Таблица: `logging_ins`
+
 ## ProfileEdit
 
 Изменение данных профиля
@@ -289,6 +331,10 @@ login_type:
 |-----------|----------|-----------------------|
 | timestamp | datetime | Время события         |
 | user_id   | int      | ID пользователя       |
+
+Топик: `profile-edit`
+
+Таблица: `profile_edits`
 
 ## MailingSubscription
 
@@ -302,8 +348,12 @@ login_type:
 
 subscription_type:
 - 1 - все
-- 2 - акции на товары
-- 3 - тематические распродажи
+- 2 - новостная рассылка
+- 3 - акции и распродажи
+
+Топик: `mailing-subscription`
+
+Таблица: `mailing_subscriptions`
 
 ## SupportContact
 
@@ -320,6 +370,10 @@ support_type:
 - 2 - звонок
 - 3 - чат
 
+Топик: `support-contact`
+
+Таблица: `support_contacts`
+
 ## RecommendationView
 
 Просмотр рекомендаций
@@ -330,6 +384,9 @@ support_type:
 | user_id          | int      | ID пользователя                            |
 | duration_seconds | double   | Время (в секундах) затраченное на просмотр |
 
+Топик: `recommendation-view`
+
+Таблица: `recommendation_views`
 
 ## SaleParticipation
 
@@ -342,6 +399,9 @@ support_type:
 | sale_id   | int      | ID распродажи                  |
 | item_id   | int      | Товар, купленный по этой акции |
 
+Топик: `sale-participation`
+
+Таблица: `sale_participations`
 
 ## ItemComparison
 
@@ -361,6 +421,10 @@ comparison_type:
 - 2 - характеристики
 - 3 - дата доставки
 
+Топик: `item-comparison`
+
+Таблица: `item_comparisons`
+
 ## OrderHistoryViewing
 
 Просмотр предыдущих заказов и их статусов
@@ -370,6 +434,10 @@ comparison_type:
 | timestamp        | datetime | Время события                                        |
 | user_id          | int      | ID пользователя                                      |
 | duration_seconds | double   | Время проведенное за просмотром истории (в секундах) |
+
+Топик: `order-history-viewing`
+
+Таблица: `order_history_viewings`
 
 ## ItemReturn
 
@@ -391,6 +459,10 @@ reason_type:
 - 3 - Неподошёл размер
 - 4 - Низкое качество 
 
+Топик: `item-return`
+
+Таблица: `item_returns`
+
 ## PromoUsage
 
 При оформлении заказа использован купон
@@ -402,6 +474,10 @@ reason_type:
 | coupon_id | int      | ID использованного купона/промокода    |
 | order_id  | int      | ID заказа, для которого купон применен |
 
+Топик: `promo-usage`
+
+Таблица: `promo_usages`
+
 ## CategoryView
 
 Переход и просмотр различных категорий и подкатегорий
@@ -412,6 +488,10 @@ reason_type:
 | user_id            | int      | ID пользователя                          |
 | category_id        | int      | ID категории на которую совершен переход |
 | parent_category_id | int?     | ID категории с которой произошел переход |
+
+Топик: `category-view`
+
+Таблица: `category_views`
 
 # Алгоритм работы и запуск
 
