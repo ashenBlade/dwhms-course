@@ -16,17 +16,15 @@ services:
     ports:
       - '8080:8080'
       - '6650:6650'
-    command: '/start-pulsar.sh'
+    command: bin/pulsar standalone
     environment:
       clusterName: 'cluster-a'
       managedLedgerDefaultEnsembleSize: '1'
       managedLedgerDefaultWriteQuorum: '1'
       managedLedgerDefaultAckQuorum: '1'
-#      advertisedAddress: 'pulsar'
     volumes:
-      - ./start-pulsar.sh:/start-pulsar.sh
-      - ./connector.yaml:/configs/clickhouse-connector.yaml
-      - ./run-connector.sh:/run-connector.sh
+      - ./config/pulsar/setup.sh:/setup.sh
+
 
 volumes:
   clickhouse-volume: {}
