@@ -25,6 +25,58 @@ services:
     volumes:
       - ./config/pulsar/setup.sh:/setup.sh
 
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    volumes:
+      - namenode-volume:/hadoop/dfs/name
+    environment:
+      CLUSTER_NAME: 'test'
+    env_file:
+      - ./config/hadoop/hadoop.env
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    volumes:
+      - datanode-volume:/hadoop/dfs/data
+    env_file:
+      - ./config/hadoop/hadoop.env
+    depends_on:
+      - namenode
+
+  resource-manager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    env_file:
+      - ./config/hadoop/hadoop.env
+    depends_on:
+      - namenode
+      - datanode
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    env_file:
+      - ./config/hadoop/hadoop.env
+    depends_on:
+      - namenode
+      - datanode
+      - resource-manager
+
+  history-server:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    volumes:
+      - history-server-volume:/hadoop/yarn/timeline
+    env_file:
+      - ./config/hadoop/hadoop.env
+    depends_on:
+      - namenode
+      - datanode
+      - resource-manager
+
+  hive:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+
 
 volumes:
   clickhouse-volume: {}
+  namenode-volume: {}
+  datanode-volume: {}
+  history-server-volume: {}
