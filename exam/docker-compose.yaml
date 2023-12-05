@@ -1,4 +1,14 @@
-version: '3.0'
+x-superset-image: &superset-image apachesuperset.docker.scarf.sh/apache/superset:${TAG:-latest-dev}
+x-superset-depends-on: &superset-depends-on
+  - superset-db
+  - superset-redis
+x-superset-volumes:
+  &superset-volumes # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
+  - ./superset/docker:/app/docker
+  - superset-home:/app/superset_home
+x-superset-env-file: &superset-env-file ./config/superset/.env-non-dev
+
+version: '3.7'
 
 services:
   clickhouse:
@@ -27,12 +37,12 @@ services:
 
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-    volumes:
-      - namenode-volume:/hadoop/dfs/name
     environment:
       CLUSTER_NAME: 'test'
     env_file:
       - ./config/hadoop/hadoop.env
+    volumes:
+      - namenode-volume:/hadoop/dfs/name
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -73,10 +83,94 @@ services:
 
   hive:
     image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./config/hive/hive.env
+    ports:
+      - '10000:10000'
+      - '10002:10002'
 
+  metastore:
+    image: 'bde2020/hive:2.3.2-postgresql-metastore'
+    command: '/opt/hive/bin/hive --service metastore'
+    ports:
+      - "9083:9083"
+    env_file:
+      - ./config/hive/hive.env
+
+  hive-metastore-postgresql:
+    image: 'bde2020/hive-metastore-postgresql:2.3.0'
+
+  superset-redis:
+    image: redis:7-alpine
+    container_name: superset_cache
+    restart: unless-stopped
+    volumes:
+      - superset-redis-volume:/data
+
+  superset-db:
+    env_file: ./superset/docker/.env-non-dev
+    image: postgres:15
+    container_name: superset_db
+    restart: unless-stopped
+    volumes:
+      - superset-db-home-volume:/var/lib/postgresql/data
+      - ./superset/docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+
+  superset:
+    env_file: *superset-env-file
+    image: *superset-image
+    container_name: superset_app
+    command: [ "/app/docker/docker-bootstrap.sh", "app-gunicorn" ]
+    user: "root"
+    restart: unless-stopped
+    ports:
+      - 8088:8088
+    depends_on: *superset-depends-on
+    volumes: *superset-volumes
+
+  # Для данных-примеров
+  superset-init:
+    image: *superset-image
+    container_name: superset_init
+    command: [ "/app/docker/docker-init.sh" ]
+    env_file: *superset-env-file
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+
+  superset-worker:
+    image: *superset-image
+    container_name: superset_worker
+    command: [ "/app/docker/docker-bootstrap.sh", "worker" ]
+    env_file: *superset-env-file
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
+        ]
+
+  superset-worker-beat:
+    image: *superset-image
+    container_name: superset_worker_beat
+    command: [ "/app/docker/docker-bootstrap.sh", "beat" ]
+    env_file: *superset-env-file
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
 
 volumes:
   clickhouse-volume: {}
   namenode-volume: {}
   datanode-volume: {}
   history-server-volume: {}
+
+  superset-home: {}
+  superset-db-home-volume: {}
+  superset-redis-volume: {}
+
