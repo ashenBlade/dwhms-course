@@ -1,9 +1,10 @@
 import logging
+import os
 import time
 
 from events import create_random_event, create_client, get_all_topics, get_all_events
 
-logging.basicConfig()
+logging.basicConfig(level=logging.DEBUG)
 
 logger = logging.getLogger()
 
@@ -18,7 +19,9 @@ def build_producers(client):
 
 def main():
     logger.info('Создаю клиента')
-    with create_client('pulsar://pulsar:6650') as client:
+    pulsar_url = os.environ.get('PULSAR_URL', 'pulsar://pulsar:6650')
+    logger.debug('PULSAR по адресу %s', pulsar_url)
+    with create_client(pulsar_url) as client:
         topic_producer = build_producers(client)
         try:
             while True:
