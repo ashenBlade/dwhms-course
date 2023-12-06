@@ -9,11 +9,17 @@ from pulsar.schema import Record, String, Integer, Double
 
 
 faker = faker.Faker(locale='ru')
+event_classes: list['BaseRecord'] = []
+
+
+def create_random_event() -> 'BaseRecord':
+    cls = faker.random.choice(event_classes)
+    return cls.create_random()
 
 
 class BaseRecord(ABC, Record):
-
-    # __init_subclass__(cls):
+    def __init_subclass__(cls):
+        event_classes.append(cls)
 
     timestamp = String(required=True)
     user_id = Integer(required=True)
