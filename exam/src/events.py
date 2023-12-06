@@ -1,7 +1,9 @@
+import contextlib
 import csv
 import io
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from typing import Type, ContextManager
 
 import faker
 import pulsar
@@ -9,7 +11,7 @@ from pulsar.schema import Record, String, Integer, Double
 
 
 faker = faker.Faker(locale='ru')
-event_classes: list['BaseRecord'] = []
+event_classes: list[Type['BaseRecord']] = []
 
 
 def create_random_event() -> 'BaseRecord':
@@ -17,12 +19,28 @@ def create_random_event() -> 'BaseRecord':
     return cls.create_random()
 
 
-class BaseRecord(ABC, Record):
+def get_all_events() -> list[Type['BaseRecord']]:
+    return event_classes
+
+
+@contextlib.contextmanager
+def create_client(service_url='pulsar://localhost:6650') -> ContextManager[pulsar.Client]:
+    client = pulsar.Client(service_url, authentication=pulsar.AuthenticationBasic(username='admin', password='apachepulsar'))
+    try:
+        yield client
+    finally:
+        client.close()
+
+
+def get_all_topics():
+    return [
+        e.topic() for e in event_classes
+    ]
+
+
+class BaseRecord(Record):
     def __init_subclass__(cls):
         event_classes.append(cls)
-
-    timestamp = String(required=True)
-    user_id = Integer(required=True)
 
     @classmethod
     def filename(cls):
@@ -40,7 +58,7 @@ class BaseRecord(ABC, Record):
     @classmethod
     def create_random(cls) -> 'BaseRecord':
         base = cls.create_custom_random()
-        base.timestamp = datetime.now() + timedelta(seconds=faker.random.randint(-10, 10))
+        base.timestamp = (datetime.now() + timedelta(seconds=faker.random.randint(-10, 10))).strftime('%Y-%m-%d %H:%M:%S')
         base.user_id = faker.random.randint(0, 100)
         return base
 
@@ -66,6 +84,8 @@ class BaseRecord(ABC, Record):
 
 
 class PageVisit(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     page_id = Integer(required=True)
 
     @classmethod
@@ -83,6 +103,8 @@ class PageVisit(BaseRecord):
 
 
 class Searching(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     query = String(required=True)
 
     @classmethod
@@ -106,6 +128,8 @@ def random_nullable_double():
 
 
 class Filtering(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     price_min = Double()
     price_max = Double()
     rating_min = Double()
@@ -121,7 +145,8 @@ class Filtering(BaseRecord):
             self.rating_min, self.rating_max
         ]
 
-    def create_custom_random(self):
+    @classmethod
+    def create_custom_random(cls):
         obj = Filtering()
         obj.price_min = random_nullable_double()
         obj.price_max = random_nullable_double()
@@ -131,6 +156,8 @@ class Filtering(BaseRecord):
 
 
 class CartAdd(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     item_id = Integer(required=True)
 
     @classmethod
@@ -150,6 +177,8 @@ class CartAdd(BaseRecord):
 
 
 class CartDelete(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     item_id = Integer(required=True)
 
     @classmethod
@@ -167,6 +196,8 @@ class CartDelete(BaseRecord):
 
 
 class Ordering(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     order_id = Integer(required=True)
 
     @classmethod
@@ -184,6 +215,8 @@ class Ordering(BaseRecord):
 
 
 class OrderCancel(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     order_id = Integer(required=True)
 
     @classmethod
@@ -201,6 +234,8 @@ class OrderCancel(BaseRecord):
 
 
 class ReviewReview(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     review_id = Integer(required=True)
 
     @classmethod
@@ -217,6 +252,8 @@ class ReviewReview(BaseRecord):
 
 
 class ReviewCreating(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     review_id = Integer(required=True)
     item_id = Integer(required=True)
 
@@ -239,6 +276,9 @@ class ReviewCreating(BaseRecord):
 
 
 class Registering(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
+
     @classmethod
     def topic(cls):
         return 'registering'
@@ -258,6 +298,8 @@ class LoginType:
 
 
 class LoggingIn(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     login_type = Integer(required=True)
 
     @classmethod
@@ -275,6 +317,9 @@ class LoggingIn(BaseRecord):
 
 
 class ProfileEdit(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
+
     @classmethod
     def topic(cls):
         return 'profile-edit'
@@ -294,6 +339,8 @@ class SubscriptionType:
 
 
 class MailingSubscription(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     subscription_type = Integer(required=True)
 
     @classmethod
@@ -317,6 +364,8 @@ class SupportType:
 
 
 class SupportContact(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     support_type = Integer(required=True)
 
     @classmethod
@@ -334,6 +383,8 @@ class SupportContact(BaseRecord):
 
 
 class RecommendationView(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     duration_seconds = Double(required=True)
 
     @classmethod
@@ -351,6 +402,8 @@ class RecommendationView(BaseRecord):
 
 
 class SaleParticipation(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     sale_id = Integer(required=True)
     item_id = Integer(required=True)
 
@@ -377,6 +430,8 @@ class ComparisonType:
 
 
 class ItemComparison(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     first_item_id = Integer(required=True)
     second_item_id = Integer(required=True)
     comparison_type = Integer(required=True)
@@ -402,6 +457,8 @@ class ItemComparison(BaseRecord):
 
 
 class OrderHistoryViewing(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     duration_seconds = Double(required=True)
 
     @classmethod
@@ -427,6 +484,8 @@ class ReasonType:
 
 
 class ItemReturn(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     item_id = Integer(required=True)
     order_id = Integer(required=True)
     reason_type = Integer(required=True)
@@ -463,6 +522,8 @@ class ItemReturn(BaseRecord):
 
 
 class PromoUsage(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     coupon_id = Integer(required=True)
     order_id = Integer(required=True)
 
@@ -485,6 +546,8 @@ class PromoUsage(BaseRecord):
 
 
 class CategoryView(BaseRecord):
+    timestamp = String(required=True)
+    user_id = Integer(required=True)
     category_id = Integer(required=True)
     parent_category_id = Integer()
 
