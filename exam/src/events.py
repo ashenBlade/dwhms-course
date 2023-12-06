@@ -246,6 +246,7 @@ class ReviewReview(BaseRecord):
     def create_custom_random(cls) -> 'BaseRecord':
         obj = ReviewReview()
         obj.review_id = faker.random.randint(0, 1000)
+        return obj
 
     def get_custom_fields(self) -> list:
         return [self.review_id]

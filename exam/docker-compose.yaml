@@ -4,13 +4,19 @@ x-superset-depends-on: &superset-depends-on
   - superset-redis
 x-superset-volumes:
   &superset-volumes # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
-  - ./superset/docker:/app/docker
   - superset-home:/app/superset_home
 x-superset-env-file: &superset-env-file ./config/superset/.env-non-dev
 
 version: '3.7'
 
 services:
+  producer:
+    build:
+      context: src
+      dockerfile: Dockerfile
+    environment:
+      PULSAR_URL: 'pulsar://pulsar:6650'
+
   clickhouse:
     image: bitnami/clickhouse:latest
     volumes:
@@ -108,7 +114,7 @@ services:
       - superset-redis-volume:/data
 
   superset-db:
-    env_file: ./superset/docker/.env-non-dev
+    env_file: *superset-env-file
     image: postgres:15
     container_name: superset_db
     restart: unless-stopped
