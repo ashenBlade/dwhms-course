@@ -13,7 +13,7 @@ services:
   producer:
     build:
       context: src
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile_producer
     environment:
       PULSAR_URL: 'pulsar://pulsar:6650'
 
@@ -45,10 +45,22 @@ services:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     environment:
       CLUSTER_NAME: 'test'
+    ports:
+      - '9870:9870'
     env_file:
       - ./config/hadoop/hadoop.env
     volumes:
       - namenode-volume:/hadoop/dfs/name
+
+  batch_saver:
+    build:
+      context: src
+      dockerfile: Dockerfile_batch_saver
+    environment:
+      MAX_FILE_SIZE: '1024'  # 1Кб для тестов
+      HDFS_URL: 'http://namenode:9870'
+    volumes:
+      - batch_saver_files-volume:/tmp
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -175,6 +187,8 @@ volumes:
   namenode-volume: {}
   datanode-volume: {}
   history-server-volume: {}
+
+  batch_saver_files-volume: {}
 
   superset-home: {}
   superset-db-home-volume: {}

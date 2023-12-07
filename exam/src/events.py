@@ -1,17 +1,21 @@
 import contextlib
 import csv
 import io
-from abc import ABC, abstractmethod
+import logging
+import os
+from abc import abstractmethod
 from datetime import datetime, timedelta
 from typing import Type, ContextManager
 
 import faker
+import hdfs
 import pulsar
 from pulsar.schema import Record, String, Integer, Double
 
 
 faker = faker.Faker(locale='ru')
 event_classes: list[Type['BaseRecord']] = []
+topic_to_event: dict[str, Type['BaseRecord']] = {}
 
 
 def create_random_event() -> 'BaseRecord':
@@ -21,6 +25,53 @@ def create_random_event() -> 'BaseRecord':
 
 def get_all_events() -> list[Type['BaseRecord']]:
     return event_classes
+
+
+MAX_FILE_SIZE_BYTES = 1024 * 1024  # 1Мб
+
+
+def process_message(message: pulsar.Message, hdfs_client: hdfs.Client, logger: logging.Logger, max_file_size_bytes=MAX_FILE_SIZE_BYTES):
+    # 1. Сериализуем запись в CSV
+    topic_name: str = message.topic_name()
+    if topic_name.startswith('persistent://public/default/'):
+        topic_name = topic_name.removeprefix('persistent://public/default/')
+    cls = topic_to_event[topic_name]
+    csv_row = cls.serialize_csv(message.value())
+
+    # 2. Записываем запись в CSV файл
+    csv_path = f'/tmp/{cls.filename()}'
+    try:
+        with open(csv_path, 'a') as file:
+            file.write(csv_row)
+            size_exceed = max_file_size_bytes < os.path.getsize(csv_path)
+    except Exception as e:
+        logger.critical('Ошибка во время записи CSV в файл %s', csv_path, exc_info=e)
+        raise e
+
+    # Если размер не превышен - завершаемся
+    if not size_exceed:
+        return
+
+    # 3. Записываем файл в HDFS
+    logger.info('Размер файла превысил максимальный. Отправляю в HDFS')
+    hdfs_path = cls.filename()
+    try:
+        with open(csv_path, 'rb') as file:
+            try:
+                hdfs_client.write(hdfs_path, data=file, append=True)
+            except hdfs.util.HdfsError:
+                hdfs_client.write(hdfs_path, data=file, append=False)
+    except Exception as e:
+        logger.critical('Ошибка во время отправки чанка в HDFS', exc_info=e)
+        raise e
+
+    # 4. Удаляем старый файл (ставим размер в 0)
+    try:
+        with open(csv_path, 'w') as file:
+            file.truncate(0)
+    except Exception as e:
+        logger.critical('Ошибка во время удаления большого файла', exc_info=e)
+        raise e
 
 
 @contextlib.contextmanager
@@ -41,6 +92,7 @@ def get_all_topics():
 class BaseRecord(Record):
     def __init_subclass__(cls):
         event_classes.append(cls)
+        topic_to_event[cls.topic()] = cls
 
     @classmethod
     def filename(cls):
@@ -67,18 +119,20 @@ class BaseRecord(Record):
     def create_custom_random(cls) -> 'BaseRecord':
         raise NotImplementedError()
 
+    @classmethod
     @abstractmethod
-    def get_custom_fields(self) -> list:
+    def get_custom_fields(cls, obj) -> list:
         raise NotImplementedError
 
-    def serialize_csv(self) -> str:
+    @classmethod
+    def serialize_csv(cls, obj) -> str:
         s = io.StringIO()
         writer = csv.writer(s, delimiter=';', quotechar='"')
         fields = [
-            self.timestamp,
-            self.user_id
+            obj.timestamp,
+            obj.user_id
         ]
-        fields.extend(self.get_custom_fields())
+        fields.extend(cls.get_custom_fields(obj))
         writer.writerow(fields)
         return s.getvalue()
 
@@ -92,8 +146,9 @@ class PageVisit(BaseRecord):
     def topic(cls):
         return 'page-visit'
 
-    def get_custom_fields(self):
-        return [self.page_id]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.page_id]
 
     @classmethod
     def create_custom_random(cls) -> 'BaseRecord':
@@ -111,8 +166,9 @@ class Searching(BaseRecord):
     def topic(cls):
         return 'searching'
 
-    def get_custom_fields(self):
-        return [self.query]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.query]
 
     @classmethod
     def create_custom_random(cls) -> 'BaseRecord':
@@ -139,10 +195,11 @@ class Filtering(BaseRecord):
     def topic(cls):
         return 'filtering'
 
-    def get_custom_fields(self):
+    @classmethod
+    def get_custom_fields(cls, obj):
         return [
-            self.price_min, self.price_max,
-            self.rating_min, self.rating_max
+            obj.price_min, obj.price_max,
+            obj.rating_min, obj.rating_max
         ]
 
     @classmethod
@@ -170,9 +227,10 @@ class CartAdd(BaseRecord):
         obj.item_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return [
-            self.item_id
+            obj.item_id
         ]
 
 
@@ -191,8 +249,9 @@ class CartDelete(BaseRecord):
         obj.item_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.item_id]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.item_id]
 
 
 class Ordering(BaseRecord):
@@ -206,8 +265,9 @@ class Ordering(BaseRecord):
         obj.order_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.order_id]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.order_id]
 
     @classmethod
     def topic(cls):
@@ -229,8 +289,9 @@ class OrderCancel(BaseRecord):
         obj.order_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.order_id]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.order_id]
 
 
 class ReviewReview(BaseRecord):
@@ -248,8 +309,9 @@ class ReviewReview(BaseRecord):
         obj.review_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.review_id]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.review_id]
 
 
 class ReviewCreating(BaseRecord):
@@ -269,10 +331,11 @@ class ReviewCreating(BaseRecord):
         obj.item_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return [
-            self.review_id,
-            self.item_id
+            obj.review_id,
+            obj.item_id
         ]
 
 
@@ -288,7 +351,8 @@ class Registering(BaseRecord):
     def create_custom_random(cls) -> 'BaseRecord':
         return Registering()
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return []
 
 
@@ -313,8 +377,9 @@ class LoggingIn(BaseRecord):
         obj.login_type = faker.random.choice([LoginType.Email, LoginType.OneTimePassword, LoginType.External])
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.login_type]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.login_type]
 
 
 class ProfileEdit(BaseRecord):
@@ -329,7 +394,8 @@ class ProfileEdit(BaseRecord):
     def create_custom_random(cls) -> 'BaseRecord':
         return ProfileEdit()
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return []
 
 
@@ -354,8 +420,9 @@ class MailingSubscription(BaseRecord):
         obj.subscription_type = faker.random.choice([SubscriptionType.All, SubscriptionType.Sales, SubscriptionType.NewsLetter])
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.subscription_type]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.subscription_type]
 
 
 class SupportType:
@@ -379,8 +446,9 @@ class SupportContact(BaseRecord):
         obj.support_type = faker.random.choice([SupportType.Email, SupportType.Chat, SupportType.Call])
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.support_type]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.support_type]
 
 
 class RecommendationView(BaseRecord):
@@ -398,8 +466,9 @@ class RecommendationView(BaseRecord):
         obj.duration_seconds = faker.random.random() * 100
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.duration_seconds]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.duration_seconds]
 
 
 class SaleParticipation(BaseRecord):
@@ -419,8 +488,9 @@ class SaleParticipation(BaseRecord):
         obj.item_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.sale_id, self.item_id]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.sale_id, obj.item_id]
 
 
 class ComparisonType:
@@ -449,11 +519,12 @@ class ItemComparison(BaseRecord):
         obj.comparison_type = faker.random.choice([ComparisonType.All, ComparisonType.Price, ComparisonType.Characteristics, ComparisonType.DeliveryDate])
         return obj
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return [
-            self.first_item_id,
-            self.second_item_id,
-            self.comparison_type
+            obj.first_item_id,
+            obj.second_item_id,
+            obj.comparison_type
         ]
 
 
@@ -472,8 +543,9 @@ class OrderHistoryViewing(BaseRecord):
         obj.duration_seconds = faker.random.random() * 100
         return obj
 
-    def get_custom_fields(self) -> list:
-        return [self.duration_seconds]
+    @classmethod
+    def get_custom_fields(cls, obj):
+        return [obj.duration_seconds]
 
 
 class ReasonType:
@@ -513,12 +585,13 @@ class ItemReturn(BaseRecord):
             obj.reason_user_message = ' '.join(faker.words())
         return obj
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return [
-            self.item_id,
-            self.order_id,
-            self.reason_type,
-            self.reason_user_message
+            obj.item_id,
+            obj.order_id,
+            obj.reason_type,
+            obj.reason_user_message
         ]
 
 
@@ -539,10 +612,11 @@ class PromoUsage(BaseRecord):
         obj.order_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return [
-            self.coupon_id,
-            self.order_id
+            obj.coupon_id,
+            obj.order_id
         ]
 
 
@@ -564,8 +638,9 @@ class CategoryView(BaseRecord):
             obj.parent_category_id = faker.random.randint(0, 1000)
         return obj
 
-    def get_custom_fields(self) -> list:
+    @classmethod
+    def get_custom_fields(cls, obj):
         return [
-            self.category_id,
-            self.parent_category_id
+            obj.category_id,
+            obj.parent_category_id
         ]
