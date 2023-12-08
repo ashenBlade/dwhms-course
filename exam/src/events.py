@@ -58,9 +58,12 @@ def process_message(message: pulsar.Message, hdfs_client: hdfs.Client, logger: l
     try:
         with open(csv_path, 'rb') as file:
             try:
-                hdfs_client.write(hdfs_path, data=file, append=True)
+                hdfs_client.write(hdfs_path, data=file, replication=1, append=True)
             except hdfs.util.HdfsError:
-                hdfs_client.write(hdfs_path, data=file, append=False)
+                try:
+                    hdfs_client.write(hdfs_path, data=file, replication=1, append=False)
+                except hdfs.util.HdfsError as hdfs_error:
+                    logger.warning(f'Ошибка при дозаписи в файл {hdfs_path}', exc_info=hdfs_error)
     except Exception as e:
         logger.critical('Ошибка во время отправки чанка в HDFS', exc_info=e)
         raise e

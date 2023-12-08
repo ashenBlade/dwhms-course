@@ -1,5 +1,27 @@
 #!/usr/bin/env sh
 
+HOST="${PULSAR_HOST:-http://localhost:8080}"
+
+echo "Использую хост $HOST"
+
+echo "Проверяю соединение к хосту $HOST"
+
+WaitPulsarStartup()
+{
+    curl "$HOST" >/dev/null 2>/dev/null
+    RESULT=$?
+    until [ $RESULT -eq 0 ];
+    do
+        echo "Сервис еще недоступен"
+        sleep 10
+        echo "Делаю повторный запрос"
+        curl "$HOST" >/dev/null 2>/dev/null
+        RESULT=$?
+    done
+}
+
+WaitPulsarStartup
+
 # Создаем топики для работы
 for topic in page-visit searching filtering cart-add cart-delete ordering \
       order-cancel review-review review-creating registering logging-in \
@@ -8,7 +30,7 @@ for topic in page-visit searching filtering cart-add cart-delete ordering \
       promo-usage category-view
 do
   echo "Создаю топик $topic"
-  /pulsar/bin/pulsar-admin topics create "public/default/$topic"
+  /pulsar/bin/pulsar-admin --admin-url "$HOST" topics create "public/default/$topic"
 done
 
 echo "Топики созданы"
@@ -33,7 +55,7 @@ configs:
     useTransactions: 'false'" > /tmp/connector.yaml
 
   echo "Создаю коннектор для $TOPIC"
-  /pulsar/bin/pulsar-admin sinks create \
+  /pulsar/bin/pulsar-admin --admin-url "$HOST" sinks create \
       --sink-config-file "/tmp/connector.yaml" \
       --parallelism 1
 done

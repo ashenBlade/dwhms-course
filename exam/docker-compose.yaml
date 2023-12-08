@@ -39,8 +39,16 @@ services:
       managedLedgerDefaultEnsembleSize: '1'
       managedLedgerDefaultWriteQuorum: '1'
       managedLedgerDefaultAckQuorum: '1'
+
+  pulsar-init:
+    image: apachepulsar/pulsar-all:latest
+    command: /setup.sh
+    environment:
+      PULSAR_HOST: 'http://pulsar:8080'
     volumes:
       - ./config/pulsar/setup.sh:/setup.sh
+    depends_on:
+      - pulsar
 
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
@@ -143,7 +151,7 @@ services:
     user: "root"
     restart: unless-stopped
     ports:
-      - 8088:8088
+      - '8088:8088'
     depends_on: *superset-depends-on
     volumes: *superset-volumes
 
